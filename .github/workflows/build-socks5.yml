@@ -1,40 +1,40 @@
-name: Build and Release cloudflared with SOCKS5 support
+name: Build and Release cloudflared without tag
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version number, e.g. 1.0.0-socks5'
+      release_name:
+        description: 'Release name, e.g. cloudflared-socks5-latest'
         required: true
-        default: '1.0.0-socks5'
+        default: 'cloudflared-socks5-latest'
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout your fork master
+      # 1️⃣ Checkout fork master
       - name: Checkout fork master
         uses: actions/checkout@v4
         with:
           ref: master
-          fetch-depth: 0  # full history required for merge
+          fetch-depth: 0
 
-      # 2️⃣ Add upstream and fetch PR #1020 commit
+      # 2️⃣ Add upstream and fetch PR #1020
       - name: Add upstream and fetch PR #1020
         run: |
           git remote add upstream https://github.com/cloudflare/cloudflared.git
           git fetch upstream 0ff20abdcd4678914c1d62a44a667b449b3b7fd9
           git checkout -b pr-1020 FETCH_HEAD
 
-      # 3️⃣ Configure git identity to allow merge commit
+      # 3️⃣ Configure git identity
       - name: Configure git identity
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      # 4️⃣ Merge PR commit into master
-      - name: Merge PR #1020 into master
+      # 4️⃣ Merge PR #1020 into master
+      - name: Merge PR #1020
         run: |
           git checkout master
           git merge --no-ff pr-1020 -m "Merge PR #1020: HTTP2 tunnel SOCKS5 support"
@@ -52,29 +52,21 @@ jobs:
           mkdir -p output
           cp ./cloudflared output/cloudflared
 
-      # 7️⃣ Upload artifact
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      # 7️⃣ Create Release without tag
+      - name: Create GitHub Release (no tag)
+        uses: actions/create-release@v4
         with:
-          name: cloudflared-socks5
-          path: output/cloudflared
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: "release-${{ github.run_id }}" # 用 workflow run ID 代替 tag
+          release_name: ${{ github.event.inputs.release_name }}
+          draft: false
+          prerelease: false
 
-      # 8️⃣ Create GitHub Release (auto-generate tag)
-      - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
+      # 8️⃣ Upload binary to Release
+      - name: Upload binary to Release
+        uses: actions/upload-release-asset@v1
         with:
-          tag_name: v${{ github.event.inputs.version }}
-          name: cloudflared v${{ github.event.inputs.version }} (SOCKS5)
-          body: "cloudflared compiled with SOCKS5 support (merged PR #1020)"
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # 9️⃣ Upload binary to Release
-      - name: Upload binary to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: output/cloudflared
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: output/cloudflared
+          asset_name: cloudflared
+          asset_content_type: application/octet-stream
