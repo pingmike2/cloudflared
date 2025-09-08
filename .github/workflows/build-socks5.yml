@@ -1,0 +1,73 @@
+name: Build and Release cloudflared with SOCKS5 support
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number, e.g. 1.0.0-socks5'
+        required: true
+        default: '1.0.0-socks5'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout your fork master
+      - name: Checkout fork master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0  # full history required for merge
+
+      # 2️⃣ Add upstream and fetch PR commit
+      - name: Add upstream and fetch PR #1020
+        run: |
+          git remote add upstream https://github.com/cloudflare/cloudflared.git
+          git fetch upstream 0ff20abdcd4678914c1d62a44a667b449b3b7fd9
+          git checkout -b pr-1020 FETCH_HEAD
+
+      # 3️⃣ Merge PR commit into master
+      - name: Merge PR #1020 into master
+        run: |
+          git checkout master
+          git merge --no-ff pr-1020 -m "Merge PR #1020: HTTP2 tunnel SOCKS5 support"
+
+      # 4️⃣ Setup Go
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      # 5️⃣ Build cloudflared
+      - name: Build cloudflared
+        run: |
+          make cloudflared
+          mkdir -p output
+          cp ./cloudflared output/cloudflared
+
+      # 6️⃣ Upload artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflared-socks5
+          path: output/cloudflared
+
+      # 7️⃣ Create GitHub Release
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: cloudflared v${{ github.event.inputs.version }} (SOCKS5)
+          body: "cloudflared compiled with SOCKS5 support (merged PR #1020)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 8️⃣ Upload binary to Release
+      - name: Upload binary to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: output/cloudflared
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
