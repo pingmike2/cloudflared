@@ -39,27 +39,33 @@ jobs:
           git checkout master
           git merge --no-ff pr-1020 -m "Merge PR #1020: HTTP2 tunnel SOCKS5 support"
 
-      # 5️⃣ Setup Go
+      # 5️⃣ Create Git tag for Release
+      - name: Create Git tag
+        run: |
+          git tag v${{ github.event.inputs.version }}
+          git push origin v${{ github.event.inputs.version }}
+
+      # 6️⃣ Setup Go
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
           go-version: "1.21"
 
-      # 6️⃣ Build cloudflared
+      # 7️⃣ Build cloudflared
       - name: Build cloudflared
         run: |
           make cloudflared
           mkdir -p output
           cp ./cloudflared output/cloudflared
 
-      # 7️⃣ Upload artifact
+      # 8️⃣ Upload artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: cloudflared-socks5
           path: output/cloudflared
 
-      # 8️⃣ Create GitHub Release
+      # 9️⃣ Create GitHub Release
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -70,7 +76,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 9️⃣ Upload binary to Release
+      # 🔟 Upload binary to Release
       - name: Upload binary to release
         uses: softprops/action-gh-release@v1
         with:
