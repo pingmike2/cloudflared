@@ -39,37 +39,27 @@ jobs:
           git checkout master
           git merge --no-ff pr-1020 -m "Merge PR #1020: HTTP2 tunnel SOCKS5 support"
 
-      # 5️⃣ Create Git tag for Release (safe, skip if exists)
-      - name: Create Git tag if not exists
-        run: |
-          if git rev-parse "v${{ github.event.inputs.version }}" >/dev/null 2>&1; then
-            echo "Tag v${{ github.event.inputs.version }} already exists, skipping creation"
-          else
-            git tag v${{ github.event.inputs.version }}
-            git push origin v${{ github.event.inputs.version }}
-          fi
-
-      # 6️⃣ Setup Go
+      # 5️⃣ Setup Go
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
           go-version: "1.21"
 
-      # 7️⃣ Build cloudflared
+      # 6️⃣ Build cloudflared
       - name: Build cloudflared
         run: |
           make cloudflared
           mkdir -p output
           cp ./cloudflared output/cloudflared
 
-      # 8️⃣ Upload artifact
+      # 7️⃣ Upload artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: cloudflared-socks5
           path: output/cloudflared
 
-      # 9️⃣ Create GitHub Release
+      # 8️⃣ Create GitHub Release (auto-generate tag)
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -77,10 +67,11 @@ jobs:
           tag_name: v${{ github.event.inputs.version }}
           name: cloudflared v${{ github.event.inputs.version }} (SOCKS5)
           body: "cloudflared compiled with SOCKS5 support (merged PR #1020)"
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 🔟 Upload binary to Release
+      # 9️⃣ Upload binary to Release
       - name: Upload binary to release
         uses: softprops/action-gh-release@v1
         with:
