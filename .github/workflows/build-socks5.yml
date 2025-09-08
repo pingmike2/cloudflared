@@ -39,11 +39,15 @@ jobs:
           git checkout master
           git merge --no-ff pr-1020 -m "Merge PR #1020: HTTP2 tunnel SOCKS5 support"
 
-      # 5️⃣ Create Git tag for Release
-      - name: Create Git tag
+      # 5️⃣ Create Git tag for Release (safe, skip if exists)
+      - name: Create Git tag if not exists
         run: |
-          git tag v${{ github.event.inputs.version }}
-          git push origin v${{ github.event.inputs.version }}
+          if git rev-parse "v${{ github.event.inputs.version }}" >/dev/null 2>&1; then
+            echo "Tag v${{ github.event.inputs.version }} already exists, skipping creation"
+          else
+            git tag v${{ github.event.inputs.version }}
+            git push origin v${{ github.event.inputs.version }}
+          fi
 
       # 6️⃣ Setup Go
       - name: Setup Go
